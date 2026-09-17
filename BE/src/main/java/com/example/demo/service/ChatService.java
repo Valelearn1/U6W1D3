@@ -1,6 +1,5 @@
 package com.example.demo.service;
 
-import com.example.demo.config.OpenRouterProperties;
 import com.example.demo.dto.*;
 import com.example.demo.dto.openrouter.WireMessage;
 import com.example.demo.entity.Chat;
@@ -24,17 +23,17 @@ public class ChatService {
     private final ChatRepository chatRepository;
     private final MessageRepository messageRepository;
     private final OpenRouterService openRouter;
-    private final OpenRouterProperties properties;
+    private final ModelCatalogService modelCatalog;
 
     public ChatService(
             ChatRepository chatRepository,
             MessageRepository messageRepository,
             OpenRouterService openRouter,
-            OpenRouterProperties properties) {
+            ModelCatalogService modelCatalog) {
         this.chatRepository = chatRepository;
         this.messageRepository = messageRepository;
         this.openRouter = openRouter;
-        this.properties = properties;
+        this.modelCatalog = modelCatalog;
     }
 
     // ---------- lettura ----------
@@ -52,9 +51,7 @@ public class ChatService {
     }
 
     public List<ModelOptionDTO> listModels() {
-        return properties.getModels().stream()
-                .map(option -> new ModelOptionDTO(option.getId(), option.getLabel()))
-                .toList();
+        return modelCatalog.list();
     }
 
     // ---------- scrittura ----------

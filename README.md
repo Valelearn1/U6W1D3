@@ -95,6 +95,29 @@ conversazione salvata a DB, altrimenti il modello non ricorderebbe nulla.
 | `DELETE` | `/api/chats/{id}` | Elimina chat e messaggi (cascade) |
 | `GET` | `/api/models` | Modelli della tendina (pubblico) |
 
+### I modelli della tendina
+
+L'elenco **non è scritto a mano**: `ModelCatalogService` lo scarica da
+`https://openrouter.ai/api/v1/models` all'avvio e poi ogni 6 ore.
+
+**Solo modelli gratuiti.** Un modello entra nell'elenco solo se costano zero
+sia il prompt sia la risposta *e* l'id finisce per `:free`. Sono gli stessi
+filtri della pagina di OpenRouter (`max_output_price=0`, `variant=free`,
+`output_modalities=text`). Il filtro è nel codice: un modello a pagamento non
+può comparire nemmeno se OpenRouter ne aggiunge di nuovi.
+
+**Ordinamento: dal più veloce al più lento, per approssimazione.** La pagina di
+OpenRouter ordina per latenza, ma quel dato non è recuperabile: il campo
+`latency_last_30m` dell'API è vuoto su tutte le varianti `:free` (verificato
+anche sulle corrispondenti a pagamento). Usiamo allora la dimensione ricavata
+dal nome del modello — `2.6b`, `26b`, `30b`, `120b`, `550b` — perché i modelli
+piccoli rispondono quasi sempre prima. Chi non dichiara la dimensione nel nome
+finisce in fondo, in ordine alfabetico.
+
+**Se OpenRouter non risponde** l'app non si pianta: tiene l'ultimo elenco
+scaricato, e se non ne ha mai avuto uno usa la lista di riserva in
+`application.properties` (`openrouter.models[...]`).
+
 ### Autenticazione
 
 | Metodo | Endpoint | Cosa fa |
@@ -137,17 +160,23 @@ Entrambi sono implementati e i due comportamenti sono distinti davvero:
 ```
 BE/src/main/java/com/example/demo/
 ├── config/       CorsConfig, RestClientConfig, OpenRouterProperties
-├── controller/   ChatController, ModelController
+├── security/     SecurityConfig, JwtService, JwtAuthenticationFilter,
+│                 AppUserDetailsService
+├── controller/   ChatController, ModelController, AuthController
 ├── dto/          record di richiesta/risposta (+ dto/openrouter per il "filo")
-├── entity/       Chat, Message, MessageRole
-├── exception/    GlobalExceptionHandler e le due eccezioni custom
-├── repository/   ChatRepository, MessageRepository
-└── service/      ChatService (logica), OpenRouterService (il cURL tradotto)
+├── entity/       Chat, Message, MessageRole, User
+├── exception/    GlobalExceptionHandler e le eccezioni custom
+├── repository/   ChatRepository, MessageRepository, UserRepository
+└── service/      ChatService (logica), OpenRouterService (il cURL tradotto),
+                 AuthService, ModelCatalogService (elenco modelli gratuiti)
 
 FEJSX/src/
 ├── api/client.js       tutte le fetch verso :8080
-├── components/         TopBar, Sidebar, Composer, MessageList, Mascot, Modal, Icons
+├── components/         TopBar, Sidebar, Composer, MessageList, Mascot,
+│                       Modal, AuthModal, Icons
 ├── hooks/useTheme.js   tema chiaro/scuro + localStorage
+├── hooks/AuthProvider.jsx  sessione, token, login/logout
+├── hooks/authContext.js    il context e l'hook useAuth
 ├── App.jsx             stato dell'applicazione
 ├── App.css             layout e animazioni
 └── index.css           token dei due temi
